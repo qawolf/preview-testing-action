@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "QA Wolf Base",
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compileOnSave": false,
+  "compilerOptions": {
+    "allowJs": false,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "checkJs": false,
+    "declaration": false,
+    "emitDecoratorMetadata": true,
+    "exactOptionalPropertyTypes": false,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "lib": ["es2021", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    "skipDefaultLibCheck": true,
+    "sourceMap": true,
+    "target": "es2021",
+    "verbatimModuleSyntax": false
+  },
+  "exclude": ["dist", "node_modules"]
+}

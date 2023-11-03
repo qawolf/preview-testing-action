@@ -1,0 +1,27 @@
+{
+  "name": "@qawolf/preview-testing-action",
+  "type": "commonjs",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "engines": {
+    "node": "^16 || ^18"
+  },
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist",
+    "build:clean": "tsc --build --clean && rm -rf ./dist",
+    "lint": "eslint . --ext js,jsx,mjs,ts,tsx --max-warnings=0",
+    "lint:fix": "eslint . --ext js,jsx,mjs,ts,tsx --fix --max-warnings=0",
+    "test": "jest --passWithNoTests",
+    "tsc:check": "tsc"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@octokit/action": "^6.0.6",
+    "axios": "^1.6.0",
+    "tslib": "^2.5.3"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1",
+    "@tsconfig/strictest": "^2.0.0"
+  }
+}

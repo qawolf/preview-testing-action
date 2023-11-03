@@ -1,0 +1,23 @@
+name: "QA Wolf Preview Environment Testing"
+description: "Test preview environments using QA Wolf"
+inputs:
+  qawolf-api-key:
+    description: "QA Wolf API key"
+    required: true
+  qawolf-team-id:
+    description: "QA Wolf team ID, required for 'create-environment'"
+    required: true
+  sha:
+    description: "The SHA of the last commit in the branch"
+    required: true
+  operation:
+    description: "The operation to perform: create-environment, delete-environment, run-tests"
+    required: true
+  deployment-url:
+    description: "The URL of the deployment, required for run-tests operation"
+  variables:
+    description: "Environment variables for the environment creation or for testing"
+
+runs:
+  using: "node16"
+  main: "dist/index.js"
