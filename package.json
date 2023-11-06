@@ -21,7 +21,6 @@
     "tslib": "^2.5.3"
   },
   "devDependencies": {
-    "@vercel/ncc": "^0.38.1",
-    "@tsconfig/strictest": "^2.0.0"
+    "@vercel/ncc": "^0.38.1"
   }
 }

@@ -8,11 +8,36 @@ const qawolfBaseUrl = "https://app.qawolf.com";
 const qawolfGraphQLEndpoint = `${qawolfBaseUrl}/api/graphql`;
 const qawolfDeploySuccessEndpoint = `${qawolfBaseUrl}/api/webhooks/deploy_success`;
 
+interface EnvironmentRetrievalResponse {
+  data: {
+    environments: Array<{
+      id: string;
+    }>;
+  };
+}
+
 interface EnvironmentCreationResponse {
   data: {
     createEnvironment: {
       id: string;
     };
+  };
+}
+
+interface TriggerCreationResponse {
+  data: {
+    createTrigger: {
+      id: string;
+    };
+  };
+}
+
+interface TriggerRetrievalResponse {
+  data: {
+    triggers: Array<{
+      environment_id: string;
+      id: string;
+    }>;
   };
 }
 
@@ -24,7 +49,7 @@ interface RepositoryResponse {
   };
 }
 
-async function createEnvironment({
+async function getOrCreateEnvironment({
   qawolfApiKey,
   branch,
   pr,
@@ -38,6 +63,40 @@ async function createEnvironment({
   qawolfApiKey: string;
   qaWolfTeamId: string;
 }): Promise<string> {
+  const retrievalResponse = await axios.post<EnvironmentRetrievalResponse>(
+    qawolfGraphQLEndpoint,
+    {
+      query: `
+      query Environments($where: EnvironmentWhereInput) {
+        environments(where: $where) {
+          id
+        }
+      }
+      `,
+      variables: {
+        where: {
+          name: {
+            equals: pr
+              ? `[PR] #${pr.number} - ${pr.title}`
+              : `[Preview] ${branch}`,
+          },
+        },
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${qawolfApiKey}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (retrievalResponse.data.data.environments[0]) {
+    const environmentId = retrievalResponse.data.data.environments[0].id;
+    core.info(`Environment already exists with ID: ${environmentId}`);
+    return environmentId;
+  }
+
   const response = await axios.post<EnvironmentCreationResponse>(
     qawolfGraphQLEndpoint,
     {
@@ -110,10 +169,10 @@ async function createEnvironmentVariables({
   return Promise.all(environmentVariableRequests);
 }
 
-async function getRepositoryId(
+async function findRepositoryIdByName(
   qawolfApiKey: string,
   headRepoFullName: string
-): Promise<string> {
+): Promise<string | undefined> {
   const response = await axios.post<RepositoryResponse>(
     qawolfGraphQLEndpoint,
     {
@@ -143,21 +202,62 @@ async function getRepositoryId(
 
   const repositories = response.data.data.codeHostingServiceRepositories;
   if (!repositories[0]) {
-    throw new Error(`Repository ID not found for ${headRepoFullName}`);
+    return;
   }
 
   return repositories[0].id;
 }
 
-async function createTrigger(
+async function findOrCreateTrigger(
   qawolfApiKey: string,
-  repositoryId: string,
+  repositoryId: string | undefined,
   branch: string,
   pr: { number: number; title: string } | undefined,
   environmentId: string,
   teamId: string
 ) {
-  const response = await axios.post(
+  const triggerName = `Deployments of ${
+    pr ? `PR #${pr.number} - ${pr.title}` : `branch ${branch}`
+  }`;
+  const retrievalResponse = await axios.post<TriggerRetrievalResponse>(
+    qawolfGraphQLEndpoint,
+    {
+      query: `query getTriggersForBranch($where: TriggerWhereInput) {
+        triggers(where: $where) {
+          environment_id
+          id
+        }
+      }
+      `,
+      variables: {
+        where: {
+          environment_id: {
+            equals: environmentId,
+          },
+          name: {
+            equals: triggerName,
+          },
+        },
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${qawolfApiKey}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (retrievalResponse.data.data.triggers[0]) {
+    const triggerId = retrievalResponse.data.data.triggers[0].id;
+    const environmentId = retrievalResponse.data.data.triggers[0];
+    core.info(
+      `Trigger with name already exists with id ${triggerId} in environment ${environmentId}`
+    );
+    return triggerId;
+  }
+
+  const creationResponse = await axios.post<TriggerCreationResponse>(
     qawolfGraphQLEndpoint,
     {
       operationName: "createTrigger",
@@ -191,9 +291,7 @@ async function createTrigger(
         deploymentEnvironment: "qawolf-preview",
         deploymentProvider: "generic",
         environmentId: environmentId,
-        name: `Deployments of ${
-          pr ? `PR #${pr.number} - ${pr.title}` : `branch ${branch}`
-        }`,
+        name: triggerName,
         teamId: teamId,
       },
     },
@@ -205,14 +303,15 @@ async function createTrigger(
     }
   );
 
-  core.debug(`Trigger response: ${JSON.stringify(response.data)}`);
+  core.debug(`Trigger response: ${JSON.stringify(creationResponse.data)}`);
 
-  const triggerId = response.data?.data?.createTrigger?.id;
+  const triggerId = creationResponse.data?.data?.createTrigger?.id;
   if (!triggerId) {
     throw new Error("Trigger ID not found in response");
   }
 
   core.info(`Trigger created with ID: ${triggerId}`);
+  return triggerId;
 }
 async function getEnvironmentIdForBranch(
   qawolfApiKey: string,
@@ -300,7 +399,7 @@ const createEnvironmentAction = async ({
   variables: { [key: string]: string };
 }) => {
   core.info("Creating environment for pull request...");
-  const environmentId = await createEnvironment({
+  const environmentId = await getOrCreateEnvironment({
     branch,
     pr,
     qaWolfTeamId,
@@ -320,11 +419,19 @@ const createEnvironmentAction = async ({
   );
 
   core.info("Retrieving repository ID...");
-  const repositoryId = await getRepositoryId(qawolfApiKey, headRepoFullName);
-  core.info(`Repository ID retrieved: ${repositoryId}`);
+  const repositoryId = await findRepositoryIdByName(
+    qawolfApiKey,
+    headRepoFullName
+  );
+
+  core.info(
+    repositoryId
+      ? `Repository ID retrieved: ${repositoryId}`
+      : "Repository not integrated with QA Wolf, enable it in the settings page to get PR comments and checks."
+  );
 
   core.info("Creating trigger for deployment...");
-  await createTrigger(
+  await findOrCreateTrigger(
     qawolfApiKey,
     repositoryId,
     branch,

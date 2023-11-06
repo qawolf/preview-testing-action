@@ -38304,7 +38304,35 @@ const parseEnvironmentVariables_1 = __nccwpck_require__(5399);
 const qawolfBaseUrl = "https://app.qawolf.com";
 const qawolfGraphQLEndpoint = `${qawolfBaseUrl}/api/graphql`;
 const qawolfDeploySuccessEndpoint = `${qawolfBaseUrl}/api/webhooks/deploy_success`;
-async function createEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, }) {
+async function getOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, }) {
+    const retrievalResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
+        query: `
+      query Environments($where: EnvironmentWhereInput) {
+        environments(where: $where) {
+          id
+        }
+      }
+      `,
+        variables: {
+            where: {
+                name: {
+                    equals: pr
+                        ? `[PR] #${pr.number} - ${pr.title}`
+                        : `[Preview] ${branch}`,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (retrievalResponse.data.data.environments[0]) {
+        const environmentId = retrievalResponse.data.data.environments[0].id;
+        core.info(`Environment already exists with ID: ${environmentId}`);
+        return environmentId;
+    }
     const response = await axios_1.default.post(qawolfGraphQLEndpoint, {
         operationName: "createEnvironment",
         query: `
@@ -38353,7 +38381,7 @@ async function createEnvironmentVariables({ environmentId, variables, qawolfApiK
     });
     return Promise.all(environmentVariableRequests);
 }
-async function getRepositoryId(qawolfApiKey, headRepoFullName) {
+async function findRepositoryIdByName(qawolfApiKey, headRepoFullName) {
     const response = await axios_1.default.post(qawolfGraphQLEndpoint, {
         query: `
         query codeHostingServiceRepositories($where: CodeHostingServiceRepositoryWhereInput) {
@@ -38378,12 +38406,43 @@ async function getRepositoryId(qawolfApiKey, headRepoFullName) {
     core.debug(`Repository response: ${JSON.stringify(response.data)}`);
     const repositories = response.data.data.codeHostingServiceRepositories;
     if (!repositories[0]) {
-        throw new Error(`Repository ID not found for ${headRepoFullName}`);
+        return;
     }
     return repositories[0].id;
 }
-async function createTrigger(qawolfApiKey, repositoryId, branch, pr, environmentId, teamId) {
-    const response = await axios_1.default.post(qawolfGraphQLEndpoint, {
+async function findOrCreateTrigger(qawolfApiKey, repositoryId, branch, pr, environmentId, teamId) {
+    const triggerName = `Deployments of ${pr ? `PR #${pr.number} - ${pr.title}` : `branch ${branch}`}`;
+    const retrievalResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
+        query: `query getTriggersForBranch($where: TriggerWhereInput) {
+        triggers(where: $where) {
+          environment_id
+          id
+        }
+      }
+      `,
+        variables: {
+            where: {
+                environment_id: {
+                    equals: environmentId,
+                },
+                name: {
+                    equals: triggerName,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (retrievalResponse.data.data.triggers[0]) {
+        const triggerId = retrievalResponse.data.data.triggers[0].id;
+        const environmentId = retrievalResponse.data.data.triggers[0];
+        core.info(`Trigger with name already exists with id ${triggerId} in environment ${environmentId}`);
+        return triggerId;
+    }
+    const creationResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
         operationName: "createTrigger",
         query: `
         mutation createTrigger(
@@ -38415,7 +38474,7 @@ async function createTrigger(qawolfApiKey, repositoryId, branch, pr, environment
             deploymentEnvironment: "qawolf-preview",
             deploymentProvider: "generic",
             environmentId: environmentId,
-            name: `Deployments of ${pr ? `PR #${pr.number} - ${pr.title}` : `branch ${branch}`}`,
+            name: triggerName,
             teamId: teamId,
         },
     }, {
@@ -38424,12 +38483,13 @@ async function createTrigger(qawolfApiKey, repositoryId, branch, pr, environment
             "Content-Type": "application/json",
         },
     });
-    core.debug(`Trigger response: ${JSON.stringify(response.data)}`);
-    const triggerId = response.data?.data?.createTrigger?.id;
+    core.debug(`Trigger response: ${JSON.stringify(creationResponse.data)}`);
+    const triggerId = creationResponse.data?.data?.createTrigger?.id;
     if (!triggerId) {
         throw new Error("Trigger ID not found in response");
     }
     core.info(`Trigger created with ID: ${triggerId}`);
+    return triggerId;
 }
 async function getEnvironmentIdForBranch(qawolfApiKey, branch) {
     const response = await axios_1.default.post(qawolfGraphQLEndpoint, {
@@ -38483,7 +38543,7 @@ async function deleteEnvironment(qawolfApiKey, environmentId) {
 }
 const createEnvironmentAction = async ({ branch, headRepoFullName, qawolfApiKey, qaWolfTeamId, pr, variables, }) => {
     core.info("Creating environment for pull request...");
-    const environmentId = await createEnvironment({
+    const environmentId = await getOrCreateEnvironment({
         branch,
         pr,
         qaWolfTeamId,
@@ -38499,10 +38559,12 @@ const createEnvironmentAction = async ({ branch, headRepoFullName, qawolfApiKey,
     });
     core.info(`Environment variables created for environment ID: ${environmentId}`);
     core.info("Retrieving repository ID...");
-    const repositoryId = await getRepositoryId(qawolfApiKey, headRepoFullName);
-    core.info(`Repository ID retrieved: ${repositoryId}`);
+    const repositoryId = await findRepositoryIdByName(qawolfApiKey, headRepoFullName);
+    core.info(repositoryId
+        ? `Repository ID retrieved: ${repositoryId}`
+        : "Repository not integrated with QA Wolf, enable it in the settings page to get PR comments and checks.");
     core.info("Creating trigger for deployment...");
-    await createTrigger(qawolfApiKey, repositoryId, branch, pr, environmentId, qaWolfTeamId);
+    await findOrCreateTrigger(qawolfApiKey, repositoryId, branch, pr, environmentId, qaWolfTeamId);
 };
 const deleteEnvironmentAction = async ({ qawolfApiKey, branch, }) => {
     core.info("Retrieving environment ID for deletion...");
@@ -38575,7 +38637,7 @@ async function run() {
         switch (operation) {
             case "create-environment":
                 await createEnvironmentAction({
-                    branch: branch,
+                    branch,
                     headRepoFullName: repoFullName,
                     pr,
                     qaWolfTeamId,
@@ -38584,11 +38646,11 @@ async function run() {
                 });
                 break;
             case "delete-environment":
-                await deleteEnvironmentAction({ branch: branch, qawolfApiKey });
+                await deleteEnvironmentAction({ branch, qawolfApiKey });
                 break;
             case "run-tests":
                 await testDeployment({
-                    branch: branch,
+                    branch,
                     commitUrl,
                     deploymentUrl,
                     qawolfApiKey,
