@@ -38304,6 +38304,30 @@ const parseEnvironmentVariables_1 = __nccwpck_require__(5399);
 const qawolfBaseUrl = "https://app.qawolf.com";
 const qawolfGraphQLEndpoint = `${qawolfBaseUrl}/api/graphql`;
 const qawolfDeploySuccessEndpoint = `${qawolfBaseUrl}/api/webhooks/deploy_success`;
+async function getEnvironmentVariablesFromEnvironment({ qawolfApiKey, environmentId, }) {
+    const retrievalResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
+        query: `query EnvironmentVariables($where: EnvironmentWhereUniqueInput!) {
+          environment(where: $where) {
+            id
+            variablesJSON
+          }
+        }`,
+        variables: {
+            where: {
+                id: environmentId,
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (!retrievalResponse.data.data.environment) {
+        throw new Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
+    }
+    return JSON.parse(retrievalResponse.data.data.environment.variablesJSON);
+}
 async function getOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, }) {
     const retrievalResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
         query: `
@@ -38315,6 +38339,9 @@ async function getOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, 
       `,
         variables: {
             where: {
+                deletedAt: {
+                    equals: null,
+                },
                 name: {
                     equals: pr
                         ? `[PR] #${pr.number} - ${pr.title}`
@@ -38422,6 +38449,9 @@ async function findOrCreateTrigger(qawolfApiKey, repositoryId, branch, pr, envir
       `,
         variables: {
             where: {
+                deleted_at: {
+                    equals: null,
+                },
                 environment_id: {
                     equals: environmentId,
                 },
@@ -38600,9 +38630,7 @@ async function run() {
         const sha = core.getInput("sha", { required: true });
         const deploymentUrl = core.getInput("deployment-url");
         const environmentVariables = core.getInput("variables");
-        const environmentVariablesJSON = environmentVariables
-            ? (0, parseEnvironmentVariables_1.parseEnvironmentVariablesToJSON)(environmentVariables)
-            : {};
+        const baseEnvironmentId = core.getInput("base-environment-id");
         const repoFullName = process.env.GITHUB_REPOSITORY;
         if (!repoFullName) {
             throw new Error("missing GITHUB_REPOSITORY");
@@ -38611,6 +38639,22 @@ async function run() {
         if (!owner || !repo) {
             throw new Error("invalid repo full name");
         }
+        const inputEnvironmentVariablesJSON = environmentVariables
+            ? (0, parseEnvironmentVariables_1.parseEnvironmentVariablesToJSON)(environmentVariables)
+            : {};
+        const baseEnvironmentVariablesJSON = baseEnvironmentId
+            ? await getEnvironmentVariablesFromEnvironment({
+                environmentId: baseEnvironmentId,
+                qawolfApiKey,
+            })
+            : {};
+        const enviromentVariables = {
+            ...baseEnvironmentVariablesJSON,
+            ...inputEnvironmentVariablesJSON,
+        };
+        core.debug(`Input environment variables count ${Object.keys(inputEnvironmentVariablesJSON).length}`);
+        core.debug(`Base environment variables count ${Object.keys(baseEnvironmentVariablesJSON).length}`);
+        core.debug(`Merged environment variables count ${Object.keys(enviromentVariables).length}`);
         const pullRequestsResponse = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
             commit_sha: sha,
             owner,
@@ -38642,7 +38686,7 @@ async function run() {
                     pr,
                     qaWolfTeamId,
                     qawolfApiKey,
-                    variables: environmentVariablesJSON,
+                    variables: enviromentVariables,
                 });
                 break;
             case "delete-environment":
@@ -38655,7 +38699,7 @@ async function run() {
                     deploymentUrl,
                     qawolfApiKey,
                     sha,
-                    variables: environmentVariablesJSON,
+                    variables: enviromentVariables,
                 });
                 break;
             default:
