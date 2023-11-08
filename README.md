@@ -6,17 +6,19 @@ GitHub action to summon the wolfpack to test your preview environments.
 
 The flow is simple, create a environment for the PR before you start testing, run tests when the preview environment is ready, delete the environment when the PR is merged just closed.
 
-### GitHub secrets
+### GitHub secrets and variables
 
-The action will require the QA Wolf API Key and your QA Wolf Team ID. Set those as GitHub secrets.
+The action will require the QA Wolf API Key and your QA Wolf Team ID. Set those as GitHub secret and action respectively.
 
 #### Environment variables
 
-You can also set environment variables as a secret in this format:
+You can set environment variables as a secret in this format:
 ```sh
 MY_FOO=bar
 MY_BAZ=qux
 ```
+
+Alternatively, you can provide the `base-environment-id` and environment variables are going to be derived from that. You can get the environment id by accessing it in the platform and getting it from the URL https://app.qawolf.com/your-team/environments/<ENVIRONMENT_ID>.
 
 ### Creating the environment
 
@@ -36,8 +38,8 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
           qawolf-api-key: "${{ secrets.QAWOLF_API_KEY }}"
-          qawolf-team-id: "${{ secrets.QAWOLF_TEAM_ID }}"
-          variables: "${{ secrets.QA_WOLF_ENVIRONMENT_VARIABLES }}"
+          qawolf-team-id: "${{ vars.QAWOLF_TEAM_ID }}"
+          base-environment-id: "${{ vars.QAWOLF_BASE_ENVIRONMENT_ID }}"
           sha: "${{ github.event.pull_request.head.sha }}"
           operation: "create-environment"
 ```
@@ -93,7 +95,7 @@ jobs:
 
 ### Deleting the environment
 
-We want to delete the environment when the PR is closed.
+We want to delete the environment at some point, usually, when the PR is closed.
 
 ```yml
 name: Delete QA Wolf PR testing environment
