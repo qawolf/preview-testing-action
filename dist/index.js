@@ -33684,6 +33684,581 @@ module.exports = function(dst, src) {
 
 /***/ }),
 
+/***/ 8749:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.qawolfDeploySuccessEndpoint = exports.qawolfGraphQLEndpoint = exports.qawolfBaseUrl = void 0;
+exports.qawolfBaseUrl = "https://app.qawolf.com";
+exports.qawolfGraphQLEndpoint = `${exports.qawolfBaseUrl}/api/graphql`;
+exports.qawolfDeploySuccessEndpoint = `${exports.qawolfBaseUrl}/api/webhooks/deploy_success`;
+
+
+/***/ }),
+
+/***/ 5121:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createEnvironmentAction = void 0;
+const createEnvironmentVariables_1 = __nccwpck_require__(2013);
+const findOrCreateTrigger_1 = __nccwpck_require__(1348);
+const findRepositoryIdByName_1 = __nccwpck_require__(8011);
+const getEnvironmentVariablesFromEnvironment_1 = __nccwpck_require__(8086);
+const getOrCreateEnvironment_1 = __nccwpck_require__(7649);
+const getTagsFromEnvironment_1 = __nccwpck_require__(3743);
+const createEnvironmentAction = async ({ branch, headRepoFullName, qawolfApiKey, qaWolfTeamId, pr, variables, log, baseEnvironmentId, }) => {
+    log.info("Creating environment for pull request...");
+    const environmentId = await (0, getOrCreateEnvironment_1.getOrCreateEnvironment)({
+        branch,
+        log,
+        pr,
+        qaWolfTeamId,
+        qawolfApiKey,
+    });
+    log.info(`Environment created with ID: ${environmentId}`);
+    const baseEnvironmentVariablesJSON = baseEnvironmentId
+        ? await (0, getEnvironmentVariablesFromEnvironment_1.getEnvironmentVariablesFromEnvironment)({
+            environmentId: baseEnvironmentId,
+            qawolfApiKey,
+        })
+        : {};
+    const combinedEnvironmentVariables = {
+        ...baseEnvironmentVariablesJSON,
+        ...variables,
+    };
+    log.info("Creating environment variables...");
+    await (0, createEnvironmentVariables_1.createEnvironmentVariables)({
+        environmentId,
+        qawolfApiKey,
+        variables: combinedEnvironmentVariables,
+    });
+    log.info(`Environment variables created for environment ID: ${environmentId}`);
+    log.info("Retrieving repository ID...");
+    const repositoryId = await (0, findRepositoryIdByName_1.findRepositoryIdByName)(qawolfApiKey, headRepoFullName, log);
+    log.info(repositoryId
+        ? `Repository ID retrieved: ${repositoryId}`
+        : "Repository not integrated with QA Wolf, enable it in the settings page to get PR comments and checks.");
+    const tags = baseEnvironmentId
+        ? await (0, getTagsFromEnvironment_1.getTagsFromGenericTriggerInEnvironment)({
+            environmentId: baseEnvironmentId,
+            qawolfApiKey,
+        })
+        : undefined;
+    log.info(`Tags retrieved: ${tags?.map((tag) => tag.name).join(", ")}`);
+    log.info("Creating trigger for deployment...");
+    await (0, findOrCreateTrigger_1.findOrCreateTrigger)({
+        branch,
+        environmentId,
+        log,
+        pr,
+        qaWolfTeamId,
+        qawolfApiKey,
+        repositoryId,
+        tags,
+    });
+};
+exports.createEnvironmentAction = createEnvironmentAction;
+
+
+/***/ }),
+
+/***/ 2013:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createEnvironmentVariables = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function createEnvironmentVariables({ environmentId, variables, qawolfApiKey, }) {
+    const environmentVariableRequests = Object.keys(variables).map(async (key) => {
+        const value = variables[key];
+        return axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+            query: `mutation UpsertEnvironmentVariable($environmentId: ID!, $value: String!, $name: String) {
+            upsertEnvironmentVariable(environment_id: $environmentId, value: $value, name: $name) {
+              id
+            }
+          }`,
+            variables: {
+                environmentId,
+                name: key,
+                value,
+            },
+        }, {
+            headers: {
+                Authorization: `Bearer ${qawolfApiKey}`,
+                "Content-Type": "application/json",
+            },
+        });
+    });
+    return Promise.all(environmentVariableRequests);
+}
+exports.createEnvironmentVariables = createEnvironmentVariables;
+
+
+/***/ }),
+
+/***/ 272:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.deleteEnvironment = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function deleteEnvironment(qawolfApiKey, environmentId, log) {
+    await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `
+        mutation deleteEnvironment($environmentId: ID!) {
+          deleteEnvironment(environment_id: $environmentId) {
+            id
+          }
+        }
+      `,
+        variables: {
+            environmentId: environmentId,
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    log.info(`Environment deleted with ID: ${environmentId}`);
+}
+exports.deleteEnvironment = deleteEnvironment;
+
+
+/***/ }),
+
+/***/ 8180:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.deleteEnvironmentAction = void 0;
+const deleteEnvironment_1 = __nccwpck_require__(272);
+const getEnvironmentIdForBranch_1 = __nccwpck_require__(8389);
+const deleteEnvironmentAction = async ({ qawolfApiKey, branch, log, }) => {
+    log.info("Retrieving environment ID for deletion...");
+    const environmentId = await (0, getEnvironmentIdForBranch_1.getEnvironmentIdForBranch)(qawolfApiKey, branch, log);
+    log.info(`Deleting environment with ID: ${environmentId}`);
+    await (0, deleteEnvironment_1.deleteEnvironment)(qawolfApiKey, environmentId, log);
+};
+exports.deleteEnvironmentAction = deleteEnvironmentAction;
+
+
+/***/ }),
+
+/***/ 1348:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findOrCreateTrigger = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function findOrCreateTrigger(args) {
+    const { branch, environmentId, log, pr, qawolfApiKey, repositoryId, qaWolfTeamId, tags, } = args;
+    const triggerName = `Deployments of ${pr ? `PR #${pr.number} - ${pr.title}` : `branch ${branch}`}`;
+    const retrievalResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `query getTriggersForBranch($where: TriggerWhereInput) {
+        triggers(where: $where) {
+          environment_id
+          id
+        }
+      }
+      `,
+        variables: {
+            where: {
+                deleted_at: {
+                    equals: null,
+                },
+                environment_id: {
+                    equals: environmentId,
+                },
+                name: {
+                    equals: triggerName,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (retrievalResponse.data.data.triggers[0]) {
+        const triggerId = retrievalResponse.data.data.triggers[0].id;
+        const environmentId = retrievalResponse.data.data.triggers[0];
+        log.info(`Trigger with name ${triggerName} already exists with id ${triggerId} in environment ${environmentId}`);
+        return triggerId;
+    }
+    const creationResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        operationName: "createTrigger",
+        query: `
+        mutation createTrigger(
+          $codeHostingServiceRepositoryId: ID!,
+          $deploymentBranches: String!,
+          $deploymentEnvironment: String!,
+          $deploymentProvider: String!,
+          $environmentId: ID!,
+          $name: String!,
+          $teamId: ID!,
+          $tag_ids: [ID!]
+        ) {
+          createTrigger(
+            codeHostingServiceRepositoryId: $codeHostingServiceRepositoryId,
+            deployment_branches: $deploymentBranches,
+            deployment_environment: $deploymentEnvironment,
+            deployment_provider: $deploymentProvider,
+            environment_id: $environmentId,
+            name: $name,
+            team_id: $teamId,
+            tag_ids: $tag_ids
+          ) {
+            id
+            __typename
+          }
+        }
+      `,
+        variables: {
+            codeHostingServiceRepositoryId: repositoryId,
+            deploymentBranches: branch,
+            deploymentEnvironment: "qawolf-preview",
+            deploymentProvider: "generic",
+            environmentId: environmentId,
+            name: triggerName,
+            tag_ids: tags?.map((tag) => tag.id),
+            teamId: qaWolfTeamId,
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    log.debug(`Trigger response: ${JSON.stringify(creationResponse.data)}`);
+    const triggerId = creationResponse.data?.data?.createTrigger?.id;
+    if (!triggerId) {
+        throw new Error("Trigger ID not found in response");
+    }
+    log.info(`Trigger created with ID: ${triggerId}`);
+    return triggerId;
+}
+exports.findOrCreateTrigger = findOrCreateTrigger;
+
+
+/***/ }),
+
+/***/ 8011:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findRepositoryIdByName = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function findRepositoryIdByName(qawolfApiKey, headRepoFullName, log) {
+    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `
+        query codeHostingServiceRepositories($where: CodeHostingServiceRepositoryWhereInput) {
+          codeHostingServiceRepositories(where: $where) {
+            id
+          }
+        }
+      `,
+        variables: {
+            where: {
+                externalFullName: {
+                    equals: headRepoFullName,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    log.debug(`Repository response: ${JSON.stringify(response.data)}`);
+    const repositories = response.data.data.codeHostingServiceRepositories;
+    if (!repositories[0]) {
+        return;
+    }
+    return repositories[0].id;
+}
+exports.findRepositoryIdByName = findRepositoryIdByName;
+
+
+/***/ }),
+
+/***/ 8389:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getEnvironmentIdForBranch = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function getEnvironmentIdForBranch(qawolfApiKey, branch, log) {
+    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `
+        query getTriggersForBranch($where: TriggerWhereInput) {
+          triggers(where: $where) {
+            id
+            environment_id
+          }
+        }
+      `,
+        variables: {
+            where: {
+                deployment_branches: {
+                    contains: branch,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    log.debug(`Trigger response: ${JSON.stringify(response.data)}`);
+    const triggers = response.data?.data?.triggers;
+    if (!triggers || triggers.length === 0) {
+        throw new Error(`No environment found for branch: ${branch}`);
+    }
+    return triggers[0].environment_id;
+}
+exports.getEnvironmentIdForBranch = getEnvironmentIdForBranch;
+
+
+/***/ }),
+
+/***/ 8086:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getEnvironmentVariablesFromEnvironment = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function getEnvironmentVariablesFromEnvironment({ qawolfApiKey, environmentId, }) {
+    const retrievalResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `query EnvironmentVariables($where: EnvironmentWhereUniqueInput!) {
+          environment(where: $where) {
+            id
+            variablesJSON
+          }
+        }`,
+        variables: {
+            where: {
+                id: environmentId,
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (!retrievalResponse.data.data.environment) {
+        throw new Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
+    }
+    return JSON.parse(retrievalResponse.data.data.environment.variablesJSON);
+}
+exports.getEnvironmentVariablesFromEnvironment = getEnvironmentVariablesFromEnvironment;
+
+
+/***/ }),
+
+/***/ 7649:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getOrCreateEnvironment = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function getOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, log, }) {
+    const retrievalResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `
+      query Environments($where: EnvironmentWhereInput) {
+        environments(where: $where) {
+          id
+        }
+      }
+      `,
+        variables: {
+            where: {
+                deletedAt: {
+                    equals: null,
+                },
+                name: {
+                    equals: pr
+                        ? `[PR] #${pr.number} - ${pr.title}`
+                        : `[Preview] ${branch}`,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (retrievalResponse.data.data.environments[0]) {
+        const environmentId = retrievalResponse.data.data.environments[0].id;
+        log.info(`Environment already exists with ID: ${environmentId}`);
+        return environmentId;
+    }
+    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        operationName: "createEnvironment",
+        query: `
+        mutation createEnvironment($name: String!, $teamId: String!) {
+          createEnvironment(name: $name, team_id: $teamId) {
+            id
+          }
+        }
+      `,
+        variables: {
+            name: pr ? `[PR] #${pr.number} - ${pr.title}` : `[Preview] ${branch}`,
+            teamId: qaWolfTeamId,
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    log.debug(`Environment response: ${JSON.stringify(response.data)}`);
+    if (!response.data.data.createEnvironment.id) {
+        throw new Error("Environment ID not found in response");
+    }
+    return response.data.data.createEnvironment.id;
+}
+exports.getOrCreateEnvironment = getOrCreateEnvironment;
+
+
+/***/ }),
+
+/***/ 3743:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getTagsFromGenericTriggerInEnvironment = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function getTagsFromGenericTriggerInEnvironment({ qawolfApiKey, environmentId, }) {
+    const retrievalResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `query GenericTriggerTagsFromEnvironment($where: EnvironmentWhereUniqueInput!) {
+          environment(where: $where) {
+            id
+            triggers(where: {deleted_at: {equals: null}, deployment_provider: {equals: "generic"}}) {
+              id
+              tags {
+                id
+                name
+              }
+            }
+          }
+        }`,
+        variables: {
+            where: {
+                id: environmentId,
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (!retrievalResponse.data.data.environment) {
+        throw new Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
+    }
+    return retrievalResponse.data.data.environment.triggers[0]?.tags?.map((tag) => tag);
+}
+exports.getTagsFromGenericTriggerInEnvironment = getTagsFromGenericTriggerInEnvironment;
+
+
+/***/ }),
+
+/***/ 9799:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.handleOperation = void 0;
+const createEnvironmentAction_1 = __nccwpck_require__(5121);
+const deleteEnvironmentAction_1 = __nccwpck_require__(8180);
+const testDeployment_1 = __nccwpck_require__(5586);
+async function handleOperation(operation, options) {
+    const { baseEnvironmentId, branch, commitUrl, deploymentUrl, log, pr, qaWolfTeamId, qawolfApiKey, repoFullName, sha, variables: enviromentVariables, } = options;
+    switch (operation) {
+        case "create-environment":
+            await (0, createEnvironmentAction_1.createEnvironmentAction)({
+                baseEnvironmentId,
+                branch,
+                headRepoFullName: repoFullName,
+                log,
+                pr,
+                qaWolfTeamId,
+                qawolfApiKey,
+                variables: enviromentVariables,
+            });
+            break;
+        case "delete-environment":
+            await (0, deleteEnvironmentAction_1.deleteEnvironmentAction)({ branch, log, qawolfApiKey });
+            break;
+        case "run-tests":
+            if (!deploymentUrl) {
+                throw new Error("missing deployment url");
+            }
+            await (0, testDeployment_1.testDeployment)({
+                branch,
+                commitUrl,
+                deploymentUrl,
+                log,
+                qawolfApiKey,
+                sha,
+                variables: enviromentVariables,
+            });
+            break;
+        default:
+            throw new Error(`invalid operation: ${operation}`);
+    }
+}
+exports.handleOperation = handleOperation;
+
+
+/***/ }),
+
 /***/ 5399:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -33720,6 +34295,40 @@ const parseEnvironmentVariablesToJSON = (environmentVariablesInput) => {
     }, {}); // Start with an empty object
 };
 exports.parseEnvironmentVariablesToJSON = parseEnvironmentVariablesToJSON;
+
+
+/***/ }),
+
+/***/ 5586:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.testDeployment = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function testDeployment({ qawolfApiKey, branch, commitUrl, sha, deploymentUrl, variables, log, }) {
+    const response = await axios_1.default.post(constants_1.qawolfDeploySuccessEndpoint, {
+        branch: branch,
+        commit_url: commitUrl,
+        deployment_type: "qawolf-preview",
+        deployment_url: deploymentUrl,
+        sha,
+        variables: {
+            ...variables,
+            URL: deploymentUrl,
+        },
+    }, {
+        headers: {
+            Authorization: qawolfApiKey,
+            "Content-Type": "application/json",
+        },
+    });
+    log.info(`Triggered QA Wolf tests: ${response.data}`);
+}
+exports.testDeployment = testDeployment;
 
 
 /***/ }),
@@ -38299,329 +38908,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const tslib_1 = __nccwpck_require__(36);
 const core = tslib_1.__importStar(__nccwpck_require__(7117));
 const action_1 = __nccwpck_require__(525);
-const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const handleOperation_1 = __nccwpck_require__(9799);
 const parseEnvironmentVariables_1 = __nccwpck_require__(5399);
-const qawolfBaseUrl = "https://app.qawolf.com";
-const qawolfGraphQLEndpoint = `${qawolfBaseUrl}/api/graphql`;
-const qawolfDeploySuccessEndpoint = `${qawolfBaseUrl}/api/webhooks/deploy_success`;
-async function getEnvironmentVariablesFromEnvironment({ qawolfApiKey, environmentId, }) {
-    const retrievalResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
-        query: `query EnvironmentVariables($where: EnvironmentWhereUniqueInput!) {
-          environment(where: $where) {
-            id
-            variablesJSON
-          }
-        }`,
-        variables: {
-            where: {
-                id: environmentId,
-            },
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    if (!retrievalResponse.data.data.environment) {
-        throw new Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
-    }
-    return JSON.parse(retrievalResponse.data.data.environment.variablesJSON);
-}
-async function getOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, }) {
-    const retrievalResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
-        query: `
-      query Environments($where: EnvironmentWhereInput) {
-        environments(where: $where) {
-          id
-        }
-      }
-      `,
-        variables: {
-            where: {
-                deletedAt: {
-                    equals: null,
-                },
-                name: {
-                    equals: pr
-                        ? `[PR] #${pr.number} - ${pr.title}`
-                        : `[Preview] ${branch}`,
-                },
-            },
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    if (retrievalResponse.data.data.environments[0]) {
-        const environmentId = retrievalResponse.data.data.environments[0].id;
-        core.info(`Environment already exists with ID: ${environmentId}`);
-        return environmentId;
-    }
-    const response = await axios_1.default.post(qawolfGraphQLEndpoint, {
-        operationName: "createEnvironment",
-        query: `
-        mutation createEnvironment($name: String!, $teamId: String!) {
-          createEnvironment(name: $name, team_id: $teamId) {
-            id
-          }
-        }
-      `,
-        variables: {
-            name: pr ? `[PR] #${pr.number} - ${pr.title}` : `[Preview] ${branch}`,
-            teamId: qaWolfTeamId,
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    core.debug(`Environment response: ${JSON.stringify(response.data)}`);
-    if (!response.data.data.createEnvironment.id) {
-        throw new Error("Environment ID not found in response");
-    }
-    return response.data.data.createEnvironment.id;
-}
-async function createEnvironmentVariables({ environmentId, variables, qawolfApiKey, }) {
-    const environmentVariableRequests = Object.keys(variables).map(async (key) => {
-        const value = variables[key];
-        return axios_1.default.post(qawolfGraphQLEndpoint, {
-            query: `mutation UpsertEnvironmentVariable($environmentId: ID!, $value: String!, $name: String) {
-            upsertEnvironmentVariable(environment_id: $environmentId, value: $value, name: $name) {
-              id
-            }
-          }`,
-            variables: {
-                environmentId,
-                name: key,
-                value,
-            },
-        }, {
-            headers: {
-                Authorization: `Bearer ${qawolfApiKey}`,
-                "Content-Type": "application/json",
-            },
-        });
-    });
-    return Promise.all(environmentVariableRequests);
-}
-async function findRepositoryIdByName(qawolfApiKey, headRepoFullName) {
-    const response = await axios_1.default.post(qawolfGraphQLEndpoint, {
-        query: `
-        query codeHostingServiceRepositories($where: CodeHostingServiceRepositoryWhereInput) {
-          codeHostingServiceRepositories(where: $where) {
-            id
-          }
-        }
-      `,
-        variables: {
-            where: {
-                externalFullName: {
-                    equals: headRepoFullName,
-                },
-            },
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    core.debug(`Repository response: ${JSON.stringify(response.data)}`);
-    const repositories = response.data.data.codeHostingServiceRepositories;
-    if (!repositories[0]) {
-        return;
-    }
-    return repositories[0].id;
-}
-async function findOrCreateTrigger(qawolfApiKey, repositoryId, branch, pr, environmentId, teamId) {
-    const triggerName = `Deployments of ${pr ? `PR #${pr.number} - ${pr.title}` : `branch ${branch}`}`;
-    const retrievalResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
-        query: `query getTriggersForBranch($where: TriggerWhereInput) {
-        triggers(where: $where) {
-          environment_id
-          id
-        }
-      }
-      `,
-        variables: {
-            where: {
-                deleted_at: {
-                    equals: null,
-                },
-                environment_id: {
-                    equals: environmentId,
-                },
-                name: {
-                    equals: triggerName,
-                },
-            },
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    if (retrievalResponse.data.data.triggers[0]) {
-        const triggerId = retrievalResponse.data.data.triggers[0].id;
-        const environmentId = retrievalResponse.data.data.triggers[0];
-        core.info(`Trigger with name already exists with id ${triggerId} in environment ${environmentId}`);
-        return triggerId;
-    }
-    const creationResponse = await axios_1.default.post(qawolfGraphQLEndpoint, {
-        operationName: "createTrigger",
-        query: `
-        mutation createTrigger(
-          $codeHostingServiceRepositoryId: ID!,
-          $deploymentBranches: String!,
-          $deploymentEnvironment: String!,
-          $deploymentProvider: String!,
-          $environmentId: ID!,
-          $name: String!,
-          $teamId: ID!
-        ) {
-          createTrigger(
-            codeHostingServiceRepositoryId: $codeHostingServiceRepositoryId,
-            deployment_branches: $deploymentBranches,
-            deployment_environment: $deploymentEnvironment,
-            deployment_provider: $deploymentProvider,
-            environment_id: $environmentId,
-            name: $name,
-            team_id: $teamId
-          ) {
-            id
-            __typename
-          }
-        }
-      `,
-        variables: {
-            codeHostingServiceRepositoryId: repositoryId,
-            deploymentBranches: branch,
-            deploymentEnvironment: "qawolf-preview",
-            deploymentProvider: "generic",
-            environmentId: environmentId,
-            name: triggerName,
-            teamId: teamId,
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    core.debug(`Trigger response: ${JSON.stringify(creationResponse.data)}`);
-    const triggerId = creationResponse.data?.data?.createTrigger?.id;
-    if (!triggerId) {
-        throw new Error("Trigger ID not found in response");
-    }
-    core.info(`Trigger created with ID: ${triggerId}`);
-    return triggerId;
-}
-async function getEnvironmentIdForBranch(qawolfApiKey, branch) {
-    const response = await axios_1.default.post(qawolfGraphQLEndpoint, {
-        query: `
-        query getTriggersForBranch($where: TriggerWhereInput) {
-          triggers(where: $where) {
-            id
-            environment_id
-          }
-        }
-      `,
-        variables: {
-            where: {
-                deployment_branches: {
-                    contains: branch,
-                },
-            },
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    core.debug(`Trigger response: ${JSON.stringify(response.data)}`);
-    const triggers = response.data?.data?.triggers;
-    if (!triggers || triggers.length === 0) {
-        throw new Error(`No environment found for branch: ${branch}`);
-    }
-    return triggers[0].environment_id;
-}
-async function deleteEnvironment(qawolfApiKey, environmentId) {
-    await axios_1.default.post(qawolfGraphQLEndpoint, {
-        query: `
-        mutation deleteEnvironment($environmentId: ID!) {
-          deleteEnvironment(environment_id: $environmentId) {
-            id
-          }
-        }
-      `,
-        variables: {
-            environmentId: environmentId,
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    core.info(`Environment deleted with ID: ${environmentId}`);
-}
-const createEnvironmentAction = async ({ branch, headRepoFullName, qawolfApiKey, qaWolfTeamId, pr, variables, }) => {
-    core.info("Creating environment for pull request...");
-    const environmentId = await getOrCreateEnvironment({
-        branch,
-        pr,
-        qaWolfTeamId,
-        qawolfApiKey,
-    });
-    core.setOutput("environment_id", environmentId);
-    core.info(`Environment created with ID: ${environmentId}`);
-    core.info("Creating environment variables...");
-    await createEnvironmentVariables({
-        environmentId,
-        qawolfApiKey,
-        variables,
-    });
-    core.info(`Environment variables created for environment ID: ${environmentId}`);
-    core.info("Retrieving repository ID...");
-    const repositoryId = await findRepositoryIdByName(qawolfApiKey, headRepoFullName);
-    core.info(repositoryId
-        ? `Repository ID retrieved: ${repositoryId}`
-        : "Repository not integrated with QA Wolf, enable it in the settings page to get PR comments and checks.");
-    core.info("Creating trigger for deployment...");
-    await findOrCreateTrigger(qawolfApiKey, repositoryId, branch, pr, environmentId, qaWolfTeamId);
-};
-const deleteEnvironmentAction = async ({ qawolfApiKey, branch, }) => {
-    core.info("Retrieving environment ID for deletion...");
-    const environmentId = await getEnvironmentIdForBranch(qawolfApiKey, branch);
-    core.info(`Deleting environment with ID: ${environmentId}`);
-    await deleteEnvironment(qawolfApiKey, environmentId);
-};
-async function testDeployment({ qawolfApiKey, branch, commitUrl, sha, deploymentUrl, variables, }) {
-    const response = await axios_1.default.post(qawolfDeploySuccessEndpoint, {
-        branch: branch,
-        commit_url: commitUrl,
-        deployment_type: "qawolf-preview",
-        deployment_url: deploymentUrl,
-        sha,
-        variables: {
-            ...variables,
-            URL: deploymentUrl,
-        },
-    }, {
-        headers: {
-            Authorization: qawolfApiKey,
-            "Content-Type": "application/json",
-        },
-    });
-    core.info(`Triggered QA Wolf tests: ${response.data}`);
-}
-async function run() {
+async function runGitHubAction() {
     try {
         const octokit = new action_1.Octokit();
         const operation = core.getInput("operation", { required: true });
@@ -38642,19 +38931,7 @@ async function run() {
         const inputEnvironmentVariablesJSON = environmentVariables
             ? (0, parseEnvironmentVariables_1.parseEnvironmentVariablesToJSON)(environmentVariables)
             : {};
-        const baseEnvironmentVariablesJSON = baseEnvironmentId
-            ? await getEnvironmentVariablesFromEnvironment({
-                environmentId: baseEnvironmentId,
-                qawolfApiKey,
-            })
-            : {};
-        const enviromentVariables = {
-            ...baseEnvironmentVariablesJSON,
-            ...inputEnvironmentVariablesJSON,
-        };
         core.debug(`Input environment variables count ${Object.keys(inputEnvironmentVariablesJSON).length}`);
-        core.debug(`Base environment variables count ${Object.keys(baseEnvironmentVariablesJSON).length}`);
-        core.debug(`Merged environment variables count ${Object.keys(enviromentVariables).length}`);
         const pullRequestsResponse = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
             commit_sha: sha,
             owner,
@@ -38678,33 +38955,19 @@ async function run() {
         }
         core.debug(`Selected branch from SHA: ${branch}`);
         const commitUrl = `https://github.com/${owner}/${repo}/commit/${sha}`;
-        switch (operation) {
-            case "create-environment":
-                await createEnvironmentAction({
-                    branch,
-                    headRepoFullName: repoFullName,
-                    pr,
-                    qaWolfTeamId,
-                    qawolfApiKey,
-                    variables: enviromentVariables,
-                });
-                break;
-            case "delete-environment":
-                await deleteEnvironmentAction({ branch, qawolfApiKey });
-                break;
-            case "run-tests":
-                await testDeployment({
-                    branch,
-                    commitUrl,
-                    deploymentUrl,
-                    qawolfApiKey,
-                    sha,
-                    variables: enviromentVariables,
-                });
-                break;
-            default:
-                throw new Error(`invalid operation: ${operation}`);
-        }
+        await (0, handleOperation_1.handleOperation)(operation, {
+            baseEnvironmentId,
+            branch,
+            commitUrl,
+            deploymentUrl,
+            log: core,
+            pr,
+            qaWolfTeamId,
+            qawolfApiKey,
+            repoFullName,
+            sha,
+            variables: inputEnvironmentVariablesJSON,
+        });
     }
     catch (error) {
         core.setFailed(`Action failed: ${typeof error === "object" && error && "message" in error
@@ -38712,7 +38975,7 @@ async function run() {
             : "Unknown error"}`);
     }
 }
-run();
+runGitHubAction();
 
 })();
 
