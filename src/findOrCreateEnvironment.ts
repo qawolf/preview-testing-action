@@ -19,7 +19,7 @@ export interface EnvironmentRetrievalResponse {
   };
 }
 
-type GetOrCreateEnvironmentParams = {
+type FindOrCreateEnvironmentParams = {
   branch: string;
   log: LogHelper;
   pr?: {
@@ -30,13 +30,13 @@ type GetOrCreateEnvironmentParams = {
   qaWolfTeamId: string;
 };
 
-export async function getOrCreateEnvironment({
+export async function findOrCreateEnvironment({
   qawolfApiKey,
   branch,
   pr,
   qaWolfTeamId,
   log,
-}: GetOrCreateEnvironmentParams): Promise<string> {
+}: FindOrCreateEnvironmentParams): Promise<string> {
   const retrievalResponse = await axios.post<EnvironmentRetrievalResponse>(
     qawolfGraphQLEndpoint,
     {

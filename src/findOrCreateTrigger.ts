@@ -92,7 +92,7 @@ export async function findOrCreateTrigger(args: FindOrCreateTriggerParams) {
       operationName: "createTrigger",
       query: `
         mutation createTrigger(
-          $codeHostingServiceRepositoryId: ID,
+          $codeHostingServiceRepositoryId: ID!,
           $deploymentBranches: String!,
           $deploymentEnvironment: String!,
           $deploymentProvider: String!,

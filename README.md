@@ -33,7 +33,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Create QA Wolf environment
-        uses: qawolf/preview-testing-action@v0.1.7-beta
+        uses: qawolf/preview-testing-action@v0.1.3-beta
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
@@ -82,7 +82,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Test preview environment
-        uses: qawolf/preview-testing-action@v0.1.7-beta
+        uses: qawolf/preview-testing-action@v0.1.3-beta
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
@@ -112,7 +112,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Delete PR testing environment
-        uses: qawolf/preview-testing-action@v0.1.7-beta
+        uses: qawolf/preview-testing-action@v0.1.3-beta
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:

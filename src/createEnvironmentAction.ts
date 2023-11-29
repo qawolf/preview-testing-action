@@ -1,8 +1,8 @@
 import { createEnvironmentVariables } from "./createEnvironmentVariables";
+import { findOrCreateEnvironment } from "./findOrCreateEnvironment";
 import { findOrCreateTrigger } from "./findOrCreateTrigger";
 import { findRepositoryIdByName } from "./findRepositoryIdByName";
 import { getEnvironmentVariablesFromEnvironment } from "./getEnvironmentVariablesFromEnvironment";
-import { getOrCreateEnvironment } from "./getOrCreateEnvironment";
 import { getTagsFromGenericTriggerInEnvironment } from "./getTagsFromEnvironment";
 import { type LogHelper } from "./handleOperation";
 
@@ -31,7 +31,7 @@ export const createEnvironmentAction = async ({
   baseEnvironmentId,
 }: CreateEnvironmentActionArgs) => {
   log.info("Creating environment for pull request...");
-  const environmentId = await getOrCreateEnvironment({
+  const environmentId = await findOrCreateEnvironment({
     branch,
     log,
     pr,
