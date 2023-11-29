@@ -17,6 +17,8 @@ inputs:
     description: "The URL of the deployment, required for run-tests operation"
   variables:
     description: "Environment variables for the environment creation or for testing"
+  base-environment-id:
+    description: "The base QA Wolf environment that will be used as a basis for new environments"
 
 runs:
   using: "node16"
