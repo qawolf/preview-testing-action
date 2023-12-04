@@ -33599,14 +33599,14 @@ exports.qawolfDeploySuccessEndpoint = `${exports.qawolfBaseUrl}/api/webhooks/dep
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createEnvironmentAction = void 0;
 const createEnvironmentVariables_1 = __nccwpck_require__(2013);
+const findOrCreateEnvironment_1 = __nccwpck_require__(151);
 const findOrCreateTrigger_1 = __nccwpck_require__(1348);
 const findRepositoryIdByName_1 = __nccwpck_require__(8011);
 const getEnvironmentVariablesFromEnvironment_1 = __nccwpck_require__(8086);
-const getOrCreateEnvironment_1 = __nccwpck_require__(7649);
 const getTagsFromEnvironment_1 = __nccwpck_require__(3743);
 const createEnvironmentAction = async ({ branch, headRepoFullName, qawolfApiKey, qaWolfTeamId, pr, variables, log, baseEnvironmentId, }) => {
     log.info("Creating environment for pull request...");
-    const environmentId = await (0, getOrCreateEnvironment_1.getOrCreateEnvironment)({
+    const environmentId = await (0, findOrCreateEnvironment_1.findOrCreateEnvironment)({
         branch,
         log,
         pr,
@@ -33749,6 +33749,78 @@ const deleteEnvironmentAction = async ({ qawolfApiKey, branch, log, }) => {
     await (0, deleteEnvironment_1.deleteEnvironment)(qawolfApiKey, environmentId, log);
 };
 exports.deleteEnvironmentAction = deleteEnvironmentAction;
+
+
+/***/ }),
+
+/***/ 151:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.findOrCreateEnvironment = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
+const constants_1 = __nccwpck_require__(8749);
+async function findOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, log, }) {
+    const retrievalResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `
+      query Environments($where: EnvironmentWhereInput) {
+        environments(where: $where) {
+          id
+        }
+      }
+      `,
+        variables: {
+            where: {
+                deletedAt: {
+                    equals: null,
+                },
+                name: {
+                    equals: pr
+                        ? `[PR] #${pr.number} - ${pr.title}`
+                        : `[Preview] ${branch}`,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    if (retrievalResponse.data.data.environments[0]) {
+        const environmentId = retrievalResponse.data.data.environments[0].id;
+        log.info(`Environment already exists with ID: ${environmentId}`);
+        return environmentId;
+    }
+    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        operationName: "createEnvironment",
+        query: `
+        mutation createEnvironment($name: String!, $teamId: String!) {
+          createEnvironment(name: $name, team_id: $teamId) {
+            id
+          }
+        }
+      `,
+        variables: {
+            name: pr ? `[PR] #${pr.number} - ${pr.title}` : `[Preview] ${branch}`,
+            teamId: qaWolfTeamId,
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    log.debug(`Environment response: ${JSON.stringify(response.data)}`);
+    if (!response.data.data.createEnvironment.id) {
+        throw new Error("Environment ID not found in response");
+    }
+    return response.data.data.createEnvironment.id;
+}
+exports.findOrCreateEnvironment = findOrCreateEnvironment;
 
 
 /***/ }),
@@ -33980,78 +34052,6 @@ async function getEnvironmentVariablesFromEnvironment({ qawolfApiKey, environmen
     return JSON.parse(retrievalResponse.data.data.environment.variablesJSON);
 }
 exports.getEnvironmentVariablesFromEnvironment = getEnvironmentVariablesFromEnvironment;
-
-
-/***/ }),
-
-/***/ 7649:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getOrCreateEnvironment = void 0;
-const tslib_1 = __nccwpck_require__(36);
-const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
-const constants_1 = __nccwpck_require__(8749);
-async function getOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId, log, }) {
-    const retrievalResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
-        query: `
-      query Environments($where: EnvironmentWhereInput) {
-        environments(where: $where) {
-          id
-        }
-      }
-      `,
-        variables: {
-            where: {
-                deletedAt: {
-                    equals: null,
-                },
-                name: {
-                    equals: pr
-                        ? `[PR] #${pr.number} - ${pr.title}`
-                        : `[Preview] ${branch}`,
-                },
-            },
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    if (retrievalResponse.data.data.environments[0]) {
-        const environmentId = retrievalResponse.data.data.environments[0].id;
-        log.info(`Environment already exists with ID: ${environmentId}`);
-        return environmentId;
-    }
-    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
-        operationName: "createEnvironment",
-        query: `
-        mutation createEnvironment($name: String!, $teamId: String!) {
-          createEnvironment(name: $name, team_id: $teamId) {
-            id
-          }
-        }
-      `,
-        variables: {
-            name: pr ? `[PR] #${pr.number} - ${pr.title}` : `[Preview] ${branch}`,
-            teamId: qaWolfTeamId,
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    log.debug(`Environment response: ${JSON.stringify(response.data)}`);
-    if (!response.data.data.createEnvironment.id) {
-        throw new Error("Environment ID not found in response");
-    }
-    return response.data.data.createEnvironment.id;
-}
-exports.getOrCreateEnvironment = getOrCreateEnvironment;
 
 
 /***/ }),
