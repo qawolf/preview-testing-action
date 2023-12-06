@@ -51,7 +51,7 @@ async function runGitHubAction() {
     );
 
     const pr = pullRequestsResponse.data[0];
-    const branch = branchesResponse.data[0]?.name ?? pr?.head.ref;
+    const branch = pr?.head.ref ?? branchesResponse.data[0]?.name;
 
     if (!pr) {
       core.debug(`No PR found`);
