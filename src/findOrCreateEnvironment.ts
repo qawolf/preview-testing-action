@@ -65,7 +65,7 @@ export async function findOrCreateEnvironment({
         Authorization: `Bearer ${qawolfApiKey}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   if (retrievalResponse.data.data.environments[0]) {
@@ -95,7 +95,7 @@ export async function findOrCreateEnvironment({
         Authorization: `Bearer ${qawolfApiKey}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   log.debug(`Environment response: ${JSON.stringify(response.data)}`);

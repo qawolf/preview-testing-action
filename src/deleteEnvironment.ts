@@ -6,7 +6,7 @@ import { type LogHelper } from "./handleOperation";
 export async function deleteEnvironment(
   qawolfApiKey: string,
   environmentId: string,
-  log: LogHelper
+  log: LogHelper,
 ) {
   await axios.post(
     qawolfGraphQLEndpoint,
@@ -27,7 +27,7 @@ export async function deleteEnvironment(
         Authorization: `Bearer ${qawolfApiKey}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   log.info(`Environment deleted with ID: ${environmentId}`);

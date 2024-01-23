@@ -14,7 +14,7 @@ type EnvVarObject = { [key: string]: string };
  */
 
 export const parseEnvironmentVariablesToJSON = (
-  environmentVariablesInput: string
+  environmentVariablesInput: string,
 ): EnvVarObject => {
   return environmentVariablesInput
     .split(/\r?\n/) // Split into lines

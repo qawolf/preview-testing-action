@@ -33,7 +33,7 @@ async function runGitHubAction() {
     core.debug(
       `Input environment variables count ${
         Object.keys(inputEnvironmentVariablesJSON).length
-      }`
+      }`,
     );
 
     const pullRequestsResponse =
@@ -47,7 +47,7 @@ async function runGitHubAction() {
         commit_sha: sha,
         owner,
         repo,
-      }
+      },
     );
 
     const pr = pullRequestsResponse.data[0];
@@ -57,7 +57,7 @@ async function runGitHubAction() {
       core.debug(`No PR found`);
     } else {
       core.debug(
-        `Selected pull request from SHA: ${pr.title} ${pr.html_url} ${pr.head.ref}`
+        `Selected pull request from SHA: ${pr.title} ${pr.html_url} ${pr.head.ref}`,
       );
     }
 
@@ -88,7 +88,7 @@ async function runGitHubAction() {
         typeof error === "object" && error && "message" in error
           ? error.message
           : "Unknown error"
-      }`
+      }`,
     );
   }
 }

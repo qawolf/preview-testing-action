@@ -40,7 +40,7 @@ export async function testDeployment({
         Authorization: qawolfApiKey,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   log.info(`Triggered QA Wolf tests: ${response.data}`);

@@ -15,7 +15,7 @@ export const deleteEnvironmentAction = async ({
   const environmentId = await getEnvironmentIdForBranch(
     qawolfApiKey,
     branch,
-    log
+    log,
   );
 
   log.info(`Deleting environment with ID: ${environmentId}`);

@@ -51,16 +51,16 @@ export async function getTagsFromGenericTriggerInEnvironment({
           Authorization: `Bearer ${qawolfApiKey}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
   if (!retrievalResponse.data.data.environment) {
     throw new Error(
-      `Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`
+      `Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`,
     );
   }
 
   return retrievalResponse.data.data.environment.triggers[0]?.tags?.map(
-    (tag) => tag
+    (tag) => tag,
   );
 }

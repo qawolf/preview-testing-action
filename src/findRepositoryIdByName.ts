@@ -14,7 +14,7 @@ interface RepositoryResponse {
 export async function findRepositoryIdByName(
   qawolfApiKey: string,
   headRepoFullName: string,
-  log: LogHelper
+  log: LogHelper,
 ): Promise<string | undefined> {
   const response = await axios.post<RepositoryResponse>(
     qawolfGraphQLEndpoint,
@@ -39,7 +39,7 @@ export async function findRepositoryIdByName(
         Authorization: `Bearer ${qawolfApiKey}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
   log.debug(`Repository response: ${JSON.stringify(response.data)}`);
 

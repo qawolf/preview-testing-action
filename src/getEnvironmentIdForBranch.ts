@@ -6,7 +6,7 @@ import { type LogHelper } from "./handleOperation";
 export async function getEnvironmentIdForBranch(
   qawolfApiKey: string,
   branch: string,
-  log: LogHelper
+  log: LogHelper,
 ): Promise<string> {
   const response = await axios.post(
     qawolfGraphQLEndpoint,
@@ -32,7 +32,7 @@ export async function getEnvironmentIdForBranch(
         Authorization: `Bearer ${qawolfApiKey}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   log.debug(`Trigger response: ${JSON.stringify(response.data)}`);

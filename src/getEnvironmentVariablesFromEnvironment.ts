@@ -39,12 +39,12 @@ export async function getEnvironmentVariablesFromEnvironment({
           Authorization: `Bearer ${qawolfApiKey}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
   if (!retrievalResponse.data.data.environment) {
     throw new Error(
-      `Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`
+      `Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`,
     );
   }
 

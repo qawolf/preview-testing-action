@@ -59,20 +59,20 @@ export const createEnvironmentAction = async ({
     variables: combinedEnvironmentVariables,
   });
   log.info(
-    `Environment variables created for environment ID: ${environmentId}`
+    `Environment variables created for environment ID: ${environmentId}`,
   );
 
   log.info("Retrieving repository ID...");
   const repositoryId = await findRepositoryIdByName(
     qawolfApiKey,
     headRepoFullName,
-    log
+    log,
   );
 
   log.info(
     repositoryId
       ? `Repository ID retrieved: ${repositoryId}`
-      : "Repository not integrated with QA Wolf, enable it in the settings page to get PR comments and checks."
+      : "Repository not integrated with QA Wolf, enable it in the settings page to get PR comments and checks.",
   );
 
   const tags = baseEnvironmentId

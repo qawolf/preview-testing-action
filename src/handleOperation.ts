@@ -24,7 +24,7 @@ type HandleOperationOptions = {
 
 export async function handleOperation(
   operation: string,
-  options: HandleOperationOptions
+  options: HandleOperationOptions,
 ) {
   const {
     baseEnvironmentId,

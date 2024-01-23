@@ -74,14 +74,14 @@ export async function findOrCreateTrigger(args: FindOrCreateTriggerParams) {
         Authorization: `Bearer ${qawolfApiKey}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   if (retrievalResponse.data.data.triggers[0]) {
     const triggerId = retrievalResponse.data.data.triggers[0].id;
     const environmentId = retrievalResponse.data.data.triggers[0];
     log.info(
-      `Trigger with name ${triggerName} already exists with id ${triggerId} in environment ${environmentId}`
+      `Trigger with name ${triggerName} already exists with id ${triggerId} in environment ${environmentId}`,
     );
     return triggerId;
   }
@@ -132,7 +132,7 @@ export async function findOrCreateTrigger(args: FindOrCreateTriggerParams) {
         Authorization: `Bearer ${qawolfApiKey}`,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   log.debug(`Trigger response: ${JSON.stringify(creationResponse.data)}`);

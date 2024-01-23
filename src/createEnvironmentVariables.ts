@@ -33,9 +33,9 @@ export async function createEnvironmentVariables({
             Authorization: `Bearer ${qawolfApiKey}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
-    }
+    },
   );
 
   return Promise.all(environmentVariableRequests);
