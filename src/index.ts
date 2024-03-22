@@ -17,13 +17,13 @@ async function runGitHubAction() {
     const repoFullName = process.env.GITHUB_REPOSITORY;
 
     if (!repoFullName) {
-      throw new Error("missing GITHUB_REPOSITORY");
+      throw Error("missing GITHUB_REPOSITORY");
     }
 
     const [owner, repo] = repoFullName.split("/");
 
     if (!owner || !repo) {
-      throw new Error("invalid repo full name");
+      throw Error("invalid repo full name");
     }
 
     const inputEnvironmentVariablesJSON = environmentVariables
@@ -62,7 +62,7 @@ async function runGitHubAction() {
     }
 
     if (!branch) {
-      throw new Error(`No branch found for SHA or PR ref: ${sha}`);
+      throw Error(`No branch found for SHA or PR ref: ${sha}`);
     }
 
     core.debug(`Selected branch from SHA: ${branch}`);

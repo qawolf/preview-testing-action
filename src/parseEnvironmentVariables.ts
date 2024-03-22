@@ -21,7 +21,7 @@ export const parseEnvironmentVariablesToJSON = (
     .map((line) => line.split("=")) // Split each line into key-value pairs
     .filter((parts) => parts[0]) // Filter out any lines that don't contain keys
     .reduce((envVars, [key, ...rest]) => {
-      if (!key) throw new Error("No key found");
+      if (!key) throw Error("No key found");
       // Combine the remaining parts back into the value string
       const value = rest.join("=").trim();
       return {

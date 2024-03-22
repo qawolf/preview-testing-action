@@ -58,7 +58,7 @@ export async function handleOperation(
       break;
     case "run-tests":
       if (!deploymentUrl) {
-        throw new Error("missing deployment url");
+        throw Error("missing deployment url");
       }
       await testDeployment({
         branch,
@@ -71,6 +71,6 @@ export async function handleOperation(
       });
       break;
     default:
-      throw new Error(`invalid operation: ${operation}`);
+      throw Error(`invalid operation: ${operation}`);
   }
 }

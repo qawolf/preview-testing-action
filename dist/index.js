@@ -34382,7 +34382,7 @@ async function findOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId,
     });
     log.debug(`Environment response: ${JSON.stringify(response.data)}`);
     if (!response.data.data.createEnvironment.id) {
-        throw new Error("Environment ID not found in response");
+        throw Error("Environment ID not found in response");
     }
     return response.data.data.createEnvironment.id;
 }
@@ -34484,7 +34484,7 @@ async function findOrCreateTrigger(args) {
     log.debug(`Trigger response: ${JSON.stringify(creationResponse.data)}`);
     const triggerId = creationResponse.data?.data?.createTrigger?.id;
     if (!triggerId) {
-        throw new Error("Trigger ID not found in response");
+        throw Error("Trigger ID not found in response");
     }
     log.info(`Trigger created with ID: ${triggerId}`);
     return triggerId;
@@ -34574,7 +34574,7 @@ async function getEnvironmentIdForBranch(qawolfApiKey, branch, log) {
     log.debug(`Trigger response: ${JSON.stringify(response.data)}`);
     const triggers = response.data?.data?.triggers;
     if (!triggers || triggers.length === 0) {
-        throw new Error(`No environment found for branch: ${branch}`);
+        throw Error(`No environment found for branch: ${branch}`);
     }
     return triggers[0].environment_id;
 }
@@ -34613,7 +34613,7 @@ async function getEnvironmentVariablesFromEnvironment({ qawolfApiKey, environmen
         },
     });
     if (!retrievalResponse.data.data.environment) {
-        throw new Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
+        throw Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
     }
     return JSON.parse(retrievalResponse.data.data.environment.variablesJSON);
 }
@@ -34658,7 +34658,7 @@ async function getTagsFromGenericTriggerInEnvironment({ qawolfApiKey, environmen
         },
     });
     if (!retrievalResponse.data.data.environment) {
-        throw new Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
+        throw Error(`Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`);
     }
     return retrievalResponse.data.data.environment.triggers[0]?.tags?.map((tag) => tag);
 }
@@ -34697,7 +34697,7 @@ async function handleOperation(operation, options) {
             break;
         case "run-tests":
             if (!deploymentUrl) {
-                throw new Error("missing deployment url");
+                throw Error("missing deployment url");
             }
             await (0, testDeployment_1.testDeployment)({
                 branch,
@@ -34710,7 +34710,7 @@ async function handleOperation(operation, options) {
             });
             break;
         default:
-            throw new Error(`invalid operation: ${operation}`);
+            throw Error(`invalid operation: ${operation}`);
     }
 }
 exports.handleOperation = handleOperation;
@@ -34744,7 +34744,7 @@ const parseEnvironmentVariablesToJSON = (environmentVariablesInput) => {
         .filter((parts) => parts[0]) // Filter out any lines that don't contain keys
         .reduce((envVars, [key, ...rest]) => {
         if (!key)
-            throw new Error("No key found");
+            throw Error("No key found");
         // Combine the remaining parts back into the value string
         const value = rest.join("=").trim();
         return {
@@ -39429,11 +39429,11 @@ async function runGitHubAction() {
         const baseEnvironmentId = core.getInput("base-environment-id");
         const repoFullName = process.env.GITHUB_REPOSITORY;
         if (!repoFullName) {
-            throw new Error("missing GITHUB_REPOSITORY");
+            throw Error("missing GITHUB_REPOSITORY");
         }
         const [owner, repo] = repoFullName.split("/");
         if (!owner || !repo) {
-            throw new Error("invalid repo full name");
+            throw Error("invalid repo full name");
         }
         const inputEnvironmentVariablesJSON = environmentVariables
             ? (0, parseEnvironmentVariables_1.parseEnvironmentVariablesToJSON)(environmentVariables)
@@ -39458,7 +39458,7 @@ async function runGitHubAction() {
             core.debug(`Selected pull request from SHA: ${pr.title} ${pr.html_url} ${pr.head.ref}`);
         }
         if (!branch) {
-            throw new Error(`No branch found for SHA or PR ref: ${sha}`);
+            throw Error(`No branch found for SHA or PR ref: ${sha}`);
         }
         core.debug(`Selected branch from SHA: ${branch}`);
         const commitUrl = `https://github.com/${owner}/${repo}/commit/${sha}`;

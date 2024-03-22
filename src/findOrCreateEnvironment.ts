@@ -101,7 +101,7 @@ export async function findOrCreateEnvironment({
   log.debug(`Environment response: ${JSON.stringify(response.data)}`);
 
   if (!response.data.data.createEnvironment.id) {
-    throw new Error("Environment ID not found in response");
+    throw Error("Environment ID not found in response");
   }
 
   return response.data.data.createEnvironment.id;

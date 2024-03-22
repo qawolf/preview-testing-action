@@ -139,7 +139,7 @@ export async function findOrCreateTrigger(args: FindOrCreateTriggerParams) {
 
   const triggerId = creationResponse.data?.data?.createTrigger?.id;
   if (!triggerId) {
-    throw new Error("Trigger ID not found in response");
+    throw Error("Trigger ID not found in response");
   }
 
   log.info(`Trigger created with ID: ${triggerId}`);

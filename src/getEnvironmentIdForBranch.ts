@@ -39,7 +39,7 @@ export async function getEnvironmentIdForBranch(
 
   const triggers = response.data?.data?.triggers;
   if (!triggers || triggers.length === 0) {
-    throw new Error(`No environment found for branch: ${branch}`);
+    throw Error(`No environment found for branch: ${branch}`);
   }
 
   return triggers[0].environment_id;

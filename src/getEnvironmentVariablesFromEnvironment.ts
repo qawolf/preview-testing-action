@@ -43,7 +43,7 @@ export async function getEnvironmentVariablesFromEnvironment({
     );
 
   if (!retrievalResponse.data.data.environment) {
-    throw new Error(
+    throw Error(
       `Environment not found with ID: ${environmentId}. Please check the environment ID is correct.`,
     );
   }
