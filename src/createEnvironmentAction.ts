@@ -32,6 +32,7 @@ export const createEnvironmentAction = async ({
 }: CreateEnvironmentActionArgs) => {
   log.info("Creating environment for pull request...");
   const environmentId = await findOrCreateEnvironment({
+    baseEnvironmentId,
     branch,
     log,
     pr,

@@ -6,6 +6,7 @@ import { type LogHelper } from "./handleOperation";
 export interface EnvironmentCreationResponse {
   data: {
     createEnvironment: {
+      branchId: string;
       id: string;
     };
   };
@@ -20,6 +21,7 @@ export interface EnvironmentRetrievalResponse {
 }
 
 type FindOrCreateEnvironmentParams = {
+  baseEnvironmentId?: string;
   branch: string;
   log: LogHelper;
   pr?: {
@@ -36,6 +38,7 @@ export async function findOrCreateEnvironment({
   pr,
   qaWolfTeamId,
   log,
+  baseEnvironmentId,
 }: FindOrCreateEnvironmentParams): Promise<string> {
   const retrievalResponse = await axios.post<EnvironmentRetrievalResponse>(
     qawolfGraphQLEndpoint,
@@ -74,7 +77,7 @@ export async function findOrCreateEnvironment({
     return environmentId;
   }
 
-  const response = await axios.post<EnvironmentCreationResponse>(
+  const creationResponse = await axios.post<EnvironmentCreationResponse>(
     qawolfGraphQLEndpoint,
     {
       operationName: "createEnvironment",
@@ -82,6 +85,7 @@ export async function findOrCreateEnvironment({
         mutation createEnvironment($name: String!, $teamId: String!) {
           createEnvironment(name: $name, team_id: $teamId) {
             id
+            branchId
           }
         }
       `,
@@ -98,11 +102,126 @@ export async function findOrCreateEnvironment({
     },
   );
 
-  log.debug(`Environment response: ${JSON.stringify(response.data)}`);
+  log.debug(`Environment response: ${JSON.stringify(creationResponse.data)}`);
 
-  if (!response.data.data.createEnvironment.id) {
+  if (!creationResponse.data.data.createEnvironment.id) {
     throw Error("Environment ID not found in response");
   }
 
-  return response.data.data.createEnvironment.id;
+  const multiBranchResponse = await axios.post<{
+    data: {
+      teamBranches: {
+        environments: {
+          id: string;
+        }[];
+        id: string;
+      }[];
+    };
+  }>(
+    qawolfGraphQLEndpoint,
+    {
+      query: `
+        query teamBranches($teamId: String!) {
+          teamBranches(where: { teamId: { equals: $teamId }}) {
+            id
+            environments{
+              id
+            }
+          }
+        }
+      `,
+      variables: {
+        teamId: qaWolfTeamId,
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${qawolfApiKey}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const hasMultipleBranches =
+    multiBranchResponse.data.data.teamBranches.length > 1;
+
+  if (!hasMultipleBranches) {
+    return creationResponse.data.data.createEnvironment.id;
+  }
+
+  const sourceEnvironment = await axios.post<{
+    data: {
+      environment: {
+        branchId: string;
+        id: string;
+      };
+    };
+  }>(
+    qawolfGraphQLEndpoint,
+    {
+      query: `
+        query EnvironmentWithBranch($where: EnvironmentWhereUniqueInput!) {
+          environment(where: $where) {
+            id
+            branchId
+          }
+        }
+      `,
+      variables: {
+        where: {
+          id: baseEnvironmentId,
+        },
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${qawolfApiKey}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const baseBranchId = sourceEnvironment.data.data.environment.branchId;
+  const targetBranchId = creationResponse.data.data.createEnvironment.branchId;
+
+  if (!baseBranchId) {
+    throw Error("Base branch ID not found in response");
+  }
+
+  log.info(
+    `Promoting workflows from branch ${baseBranchId} to ${targetBranchId}`,
+  );
+
+  const promotionResponse = await axios.post(
+    qawolfGraphQLEndpoint,
+    {
+      query: `
+        mutation PromoteWorkflowsToBranch(
+          $sourceTeamBranchId: String!
+          $targetTeamBranchId: String!
+        ) {
+          promoteWorkflowsToBranch(
+            sourceTeamBranchId: $sourceTeamBranchId
+            targetTeamBranchId: $targetTeamBranchId
+          )
+        }
+      `,
+      variables: {
+        sourceTeamBranchId: baseBranchId,
+        targetTeamBranchId: targetBranchId,
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${qawolfApiKey}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  if (!promotionResponse.data.data) {
+    throw new Error("Promotion failed");
+  }
+
+  return creationResponse.data.data.createEnvironment.id;
 }
