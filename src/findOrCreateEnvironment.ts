@@ -122,7 +122,7 @@ export async function findOrCreateEnvironment({
     {
       query: `
         query teamBranches($teamId: String!) {
-          teamBranches(where: { teamId: { equals: $teamId }}) {
+          teamBranches: activeTeamBranches(teamId: $teamId) {
             id
             environments{
               id

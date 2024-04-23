@@ -34457,7 +34457,7 @@ async function findOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId,
     const multiBranchResponse = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
         query: `
         query teamBranches($teamId: String!) {
-          teamBranches(where: { teamId: { equals: $teamId }}) {
+          teamBranches: activeTeamBranches(teamId: $teamId) {
             id
             environments{
               id
