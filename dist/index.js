@@ -34255,6 +34255,10 @@ const createEnvironmentAction = async ({ branch, headRepoFullName, qawolfApiKey,
             qawolfApiKey,
         })
         : {};
+    if (typeof baseEnvironmentVariablesJSON !== "object") {
+        log.error("baseEnvironmentVariablesJSON is not an object");
+        throw new Error("baseEnvironmentVariablesJSON is not an object");
+    }
     const combinedEnvironmentVariables = {
         ...baseEnvironmentVariablesJSON,
         ...variables,
