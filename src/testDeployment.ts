@@ -25,7 +25,7 @@ export async function testDeployment({
   const response = await axios.post(
     qawolfDeploySuccessEndpoint,
     {
-      branch: branch,
+      branch,
       commit_url: commitUrl,
       deployment_type: "qawolf-preview",
       deployment_url: deploymentUrl,

@@ -121,7 +121,7 @@ export async function findOrCreateTrigger(args: FindOrCreateTriggerParams) {
         deploymentBranches: branch,
         deploymentEnvironment: "qawolf-preview",
         deploymentProvider: "generic",
-        environmentId: environmentId,
+        environmentId,
         name: triggerName,
         tag_ids: tags?.map((tag) => tag.id),
         teamId: qaWolfTeamId,

@@ -19,7 +19,7 @@ export async function deleteEnvironment(
         }
       `,
       variables: {
-        environmentId: environmentId,
+        environmentId,
       },
     },
     {

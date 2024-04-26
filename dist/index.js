@@ -34357,7 +34357,7 @@ async function deleteEnvironment(qawolfApiKey, environmentId, log) {
         }
       `,
         variables: {
-            environmentId: environmentId,
+            environmentId,
         },
     }, {
         headers: {
@@ -34619,7 +34619,7 @@ async function findOrCreateTrigger(args) {
             deploymentBranches: branch,
             deploymentEnvironment: "qawolf-preview",
             deploymentProvider: "generic",
-            environmentId: environmentId,
+            environmentId,
             name: triggerName,
             tag_ids: tags?.map((tag) => tag.id),
             teamId: qaWolfTeamId,
@@ -34919,7 +34919,7 @@ const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8924));
 const constants_1 = __nccwpck_require__(8749);
 async function testDeployment({ qawolfApiKey, branch, commitUrl, sha, deploymentUrl, variables, log, }) {
     const response = await axios_1.default.post(constants_1.qawolfDeploySuccessEndpoint, {
-        branch: branch,
+        branch,
         commit_url: commitUrl,
         deployment_type: "qawolf-preview",
         deployment_url: deploymentUrl,
