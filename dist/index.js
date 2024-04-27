@@ -34563,9 +34563,6 @@ async function findOrCreateTrigger(args) {
       `,
         variables: {
             where: {
-                deleted_at: {
-                    equals: null,
-                },
                 environment_id: {
                     equals: environmentId,
                 },
@@ -34786,7 +34783,7 @@ async function getTagsFromGenericTriggerInEnvironment({ qawolfApiKey, environmen
         query: `query GenericTriggerTagsFromEnvironment($where: EnvironmentWhereUniqueInput!) {
           environment(where: $where) {
             id
-            triggers(where: {deleted_at: {equals: null}, deployment_provider: {equals: "generic"}}) {
+            triggers(where: {deployment_provider: {equals: "generic"}}) {
               id
               tags {
                 id

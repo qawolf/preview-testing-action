@@ -31,7 +31,7 @@ export async function getTagsFromGenericTriggerInEnvironment({
         query: `query GenericTriggerTagsFromEnvironment($where: EnvironmentWhereUniqueInput!) {
           environment(where: $where) {
             id
-            triggers(where: {deleted_at: {equals: null}, deployment_provider: {equals: "generic"}}) {
+            triggers(where: {deployment_provider: {equals: "generic"}}) {
               id
               tags {
                 id

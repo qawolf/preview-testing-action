@@ -57,9 +57,6 @@ export async function findOrCreateTrigger(args: FindOrCreateTriggerParams) {
       `,
       variables: {
         where: {
-          deleted_at: {
-            equals: null,
-          },
           environment_id: {
             equals: environmentId,
           },
