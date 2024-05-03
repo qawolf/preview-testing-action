@@ -13,6 +13,7 @@ The action will require the QA Wolf API Key and your QA Wolf Team ID. Set those 
 #### Environment variables
 
 You can set environment variables as a secret in this format:
+
 ```sh
 MY_FOO=bar
 MY_BAZ=qux
