@@ -83,7 +83,7 @@ export async function findOrCreateEnvironment({
       operationName: "createEnvironment",
       query: `
         mutation createEnvironment($name: String!, $teamId: String!) {
-          createEnvironment(name: $name, team_id: $teamId) {
+          createEnvironment(name: $name, teamId: $teamId) {
             id
             branchId
           }
