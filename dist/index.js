@@ -58732,27 +58732,26 @@ exports.createEnvironmentVariables = createEnvironmentVariables;
 
 /***/ }),
 
-/***/ 272:
+/***/ 1964:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.deleteEnvironment = void 0;
+exports.deleteTeamBranch = void 0;
 const tslib_1 = __nccwpck_require__(36);
 const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8379));
 const constants_1 = __nccwpck_require__(8749);
-async function deleteEnvironment(qawolfApiKey, environmentId, log) {
+async function deleteTeamBranch({ branchId, log, qawolfApiKey, teamId, }) {
     await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
         query: `
-        mutation deleteEnvironment($environmentId: ID!) {
-          deleteEnvironment(environment_id: $environmentId) {
-            id
-          }
+        mutation deleteTeamBranch($branchId: String!, $teamId: String!) {
+            deleteTeamBranch(data: { branchId: $branchId, teamId: $teamId })
         }
       `,
         variables: {
-            environmentId,
+            branchId,
+            teamId,
         },
     }, {
         headers: {
@@ -58760,29 +58759,26 @@ async function deleteEnvironment(qawolfApiKey, environmentId, log) {
             "Content-Type": "application/json",
         },
     });
-    log.info(`Environment deleted with ID: ${environmentId}`);
+    log.info(`Branch deleted with ID: ${branchId}`);
 }
-exports.deleteEnvironment = deleteEnvironment;
+exports.deleteTeamBranch = deleteTeamBranch;
 
 
 /***/ }),
 
-/***/ 8180:
+/***/ 5420:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.deleteEnvironmentAction = void 0;
-const deleteEnvironment_1 = __nccwpck_require__(272);
-const getEnvironmentIdForBranch_1 = __nccwpck_require__(8389);
-const deleteEnvironmentAction = async ({ qawolfApiKey, branch, log, }) => {
-    log.info("Retrieving environment ID for deletion...");
-    const environmentId = await (0, getEnvironmentIdForBranch_1.getEnvironmentIdForBranch)(qawolfApiKey, branch, log);
-    log.info(`Deleting environment with ID: ${environmentId}`);
-    await (0, deleteEnvironment_1.deleteEnvironment)(qawolfApiKey, environmentId, log);
+exports.deleteTeamBranchAction = void 0;
+const deleteTeamBranch_1 = __nccwpck_require__(1964);
+const deleteTeamBranchAction = async ({ qawolfApiKey, branchId, log, teamId, }) => {
+    log.info(`Deleting branch with ID: ${branchId}`);
+    await (0, deleteTeamBranch_1.deleteTeamBranch)({ branchId, log, qawolfApiKey, teamId });
 };
-exports.deleteEnvironmentAction = deleteEnvironmentAction;
+exports.deleteTeamBranchAction = deleteTeamBranchAction;
 
 
 /***/ }),
@@ -59079,51 +59075,6 @@ exports.findRepositoryIdByName = findRepositoryIdByName;
 
 /***/ }),
 
-/***/ 8389:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getEnvironmentIdForBranch = void 0;
-const tslib_1 = __nccwpck_require__(36);
-const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8379));
-const constants_1 = __nccwpck_require__(8749);
-async function getEnvironmentIdForBranch(qawolfApiKey, branch, log) {
-    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
-        query: `
-        query getTriggersForBranch($where: TriggerWhereInput) {
-          triggers(where: $where) {
-            id
-            environment_id
-          }
-        }
-      `,
-        variables: {
-            where: {
-                deployment_branches: {
-                    contains: branch,
-                },
-            },
-        },
-    }, {
-        headers: {
-            Authorization: `Bearer ${qawolfApiKey}`,
-            "Content-Type": "application/json",
-        },
-    });
-    log.debug(`Trigger response: ${JSON.stringify(response.data)}`);
-    const triggers = response.data?.data?.triggers;
-    if (!triggers || triggers.length === 0) {
-        throw Error(`No environment found for branch: ${branch}`);
-    }
-    return triggers[0].environment_id;
-}
-exports.getEnvironmentIdForBranch = getEnvironmentIdForBranch;
-
-
-/***/ }),
-
 /***/ 8086:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -59216,7 +59167,7 @@ exports.getTagsFromGenericTriggerInEnvironment = getTagsFromGenericTriggerInEnvi
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.handleOperation = void 0;
 const createEnvironmentAction_1 = __nccwpck_require__(5121);
-const deleteEnvironmentAction_1 = __nccwpck_require__(8180);
+const deleteTeamBranchAction_1 = __nccwpck_require__(5420);
 const testDeployment_1 = __nccwpck_require__(5586);
 async function handleOperation(operation, options) {
     const { baseEnvironmentId, branch, commitUrl, deploymentUrl, log, pr, qaWolfTeamId, qawolfApiKey, repoFullName, sha, variables: enviromentVariables, } = options;
@@ -59234,7 +59185,12 @@ async function handleOperation(operation, options) {
             });
             break;
         case "delete-environment":
-            await (0, deleteEnvironmentAction_1.deleteEnvironmentAction)({ branch, log, qawolfApiKey });
+            await (0, deleteTeamBranchAction_1.deleteTeamBranchAction)({
+                branchId: branch,
+                log,
+                qawolfApiKey,
+                teamId: qaWolfTeamId,
+            });
             break;
         case "run-tests":
             if (!deploymentUrl) {

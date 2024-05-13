@@ -1,5 +1,5 @@
 import { createEnvironmentAction } from "./createEnvironmentAction";
-import { deleteEnvironmentAction } from "./deleteEnvironmentAction";
+import { deleteTeamBranchAction } from "./deleteTeamBranchAction";
 import { testDeployment } from "./testDeployment";
 
 export type LogHelper = {
@@ -54,7 +54,12 @@ export async function handleOperation(
       });
       break;
     case "delete-environment":
-      await deleteEnvironmentAction({ branch, log, qawolfApiKey });
+      await deleteTeamBranchAction({
+        branchId: branch,
+        log,
+        qawolfApiKey,
+        teamId: qaWolfTeamId,
+      });
       break;
     case "run-tests":
       if (!deploymentUrl) {
