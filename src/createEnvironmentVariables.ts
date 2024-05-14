@@ -17,8 +17,8 @@ export async function createEnvironmentVariables({
       return axios.post(
         qawolfGraphQLEndpoint,
         {
-          query: `mutation UpsertEnvironmentVariable($environmentId: ID!, $value: String!, $name: String) {
-            upsertEnvironmentVariable(environment_id: $environmentId, value: $value, name: $name) {
+          query: `mutation UpsertEnvironmentVariable($environmentId: ID!, $value: String!, $name: String!) {
+            upsertEnvironmentVariable(environmentId: $environmentId, value: $value, name: $name) {
               id
             }
           }`,

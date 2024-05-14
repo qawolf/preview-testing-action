@@ -1,7 +1,7 @@
 {
   "name": "@qawolf/preview-testing-action",
   "type": "commonjs",
-  "version": "0.0.1",
+  "version": "v0.2.3",
   "main": "dist/index.js",
   "engines": {
     "node": "^16 || ^18 || ^20"

@@ -58708,8 +58708,8 @@ async function createEnvironmentVariables({ environmentId, variables, qawolfApiK
     const environmentVariableRequests = Object.keys(variables).map(async (key) => {
         const value = variables[key];
         return axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
-            query: `mutation UpsertEnvironmentVariable($environmentId: ID!, $value: String!, $name: String) {
-            upsertEnvironmentVariable(environment_id: $environmentId, value: $value, name: $name) {
+            query: `mutation UpsertEnvironmentVariable($environmentId: ID!, $value: String!, $name: String!) {
+            upsertEnvironmentVariable(environmentId: $environmentId, value: $value, name: $name) {
               id
             }
           }`,
