@@ -10,8 +10,8 @@
     "build": "ncc build src/index.ts -o dist",
     "build:clean": "tsc --build --clean && rm -rf ./dist",
     "gen": "npm run build",
-    "lint": "eslint . --ext js,jsx,mjs,ts,tsx --max-warnings=0",
-    "lint:fix": "eslint . --ext js,jsx,mjs,ts,tsx --fix --max-warnings=0",
+    "lint": "eslint . --ext js,jsx,mjs,ts,tsx --max-warnings=0 && prettier --check .",
+    "lint:fix": "eslint . --ext js,jsx,mjs,ts,tsx --fix --max-warnings=0 && prettier --write .",
     "test": "jest --passWithNoTests",
     "tsc:check": "tsc"
   },
