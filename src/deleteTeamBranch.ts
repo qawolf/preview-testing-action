@@ -4,17 +4,17 @@ import { qawolfGraphQLEndpoint } from "./constants";
 import { type LogHelper } from "./handleOperation";
 
 export async function deleteTeamBranch({
-  branchId,
   log,
   qawolfApiKey,
+  teamBranchId,
   teamId,
 }: {
-  branchId: string;
   log: LogHelper;
   qawolfApiKey: string;
+  teamBranchId: string;
   teamId: string;
 }) {
-  await axios.post(
+  const response = await axios.post(
     qawolfGraphQLEndpoint,
     {
       query: `
@@ -23,7 +23,7 @@ export async function deleteTeamBranch({
         }
       `,
       variables: {
-        branchId,
+        branchId: teamBranchId,
         teamId,
       },
     },
@@ -35,5 +35,10 @@ export async function deleteTeamBranch({
     },
   );
 
-  log.info(`Branch deleted with ID: ${branchId}`);
+  if (response.data.errors) {
+    log.error(`Team branch removal failed.`);
+    throw Error("Team branch removal failed.");
+  }
+
+  log.info(`Branch deleted with ID: ${teamBranchId}`);
 }

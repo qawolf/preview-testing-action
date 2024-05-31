@@ -55,7 +55,7 @@ export async function handleOperation(
       break;
     case "delete-environment":
       await deleteTeamBranchAction({
-        branchId: branch,
+        gitBranch: branch,
         log,
         qawolfApiKey,
         teamId: qaWolfTeamId,

@@ -58742,15 +58742,15 @@ exports.deleteTeamBranch = void 0;
 const tslib_1 = __nccwpck_require__(36);
 const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8379));
 const constants_1 = __nccwpck_require__(8749);
-async function deleteTeamBranch({ branchId, log, qawolfApiKey, teamId, }) {
-    await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+async function deleteTeamBranch({ log, qawolfApiKey, teamBranchId, teamId, }) {
+    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
         query: `
         mutation deleteTeamBranch($branchId: String!, $teamId: String!) {
             deleteTeamBranch(data: { branchId: $branchId, teamId: $teamId })
         }
       `,
         variables: {
-            branchId,
+            branchId: teamBranchId,
             teamId,
         },
     }, {
@@ -58759,7 +58759,11 @@ async function deleteTeamBranch({ branchId, log, qawolfApiKey, teamId, }) {
             "Content-Type": "application/json",
         },
     });
-    log.info(`Branch deleted with ID: ${branchId}`);
+    if (response.data.errors) {
+        log.error(`Team branch removal failed.`);
+        throw Error("Team branch removal failed.");
+    }
+    log.info(`Branch deleted with ID: ${teamBranchId}`);
 }
 exports.deleteTeamBranch = deleteTeamBranch;
 
@@ -58774,9 +58778,15 @@ exports.deleteTeamBranch = deleteTeamBranch;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deleteTeamBranchAction = void 0;
 const deleteTeamBranch_1 = __nccwpck_require__(1964);
-const deleteTeamBranchAction = async ({ qawolfApiKey, branchId, log, teamId, }) => {
-    log.info(`Deleting branch with ID: ${branchId}`);
-    await (0, deleteTeamBranch_1.deleteTeamBranch)({ branchId, log, qawolfApiKey, teamId });
+const getEnvironmentIdForBranch_1 = __nccwpck_require__(8389);
+const deleteTeamBranchAction = async ({ qawolfApiKey, gitBranch, log, teamId, }) => {
+    log.info(`Deleting team branch for git branch ${gitBranch}`);
+    const teamBranchId = await (0, getEnvironmentIdForBranch_1.getBranchIdIdForGitBranch)({
+        gitBranch,
+        log,
+        qawolfApiKey,
+    });
+    await (0, deleteTeamBranch_1.deleteTeamBranch)({ log, qawolfApiKey, teamBranchId, teamId });
 };
 exports.deleteTeamBranchAction = deleteTeamBranchAction;
 
@@ -59075,6 +59085,53 @@ exports.findRepositoryIdByName = findRepositoryIdByName;
 
 /***/ }),
 
+/***/ 8389:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getBranchIdIdForGitBranch = void 0;
+const tslib_1 = __nccwpck_require__(36);
+const axios_1 = tslib_1.__importDefault(__nccwpck_require__(8379));
+const constants_1 = __nccwpck_require__(8749);
+async function getBranchIdIdForGitBranch({ gitBranch, log, qawolfApiKey, }) {
+    const response = await axios_1.default.post(constants_1.qawolfGraphQLEndpoint, {
+        query: `
+        query getTriggersForBranch($where: TriggerWhereInput) {
+          triggers(where: $where) {
+            id
+            environment {
+              branchId
+            }
+          }
+        }
+      `,
+        variables: {
+            where: {
+                deployment_branches: {
+                    contains: gitBranch,
+                },
+            },
+        },
+    }, {
+        headers: {
+            Authorization: `Bearer ${qawolfApiKey}`,
+            "Content-Type": "application/json",
+        },
+    });
+    log.debug(`Trigger response: ${JSON.stringify(response.data)}`);
+    const triggers = response.data?.data?.triggers;
+    if (!triggers || triggers.length === 0) {
+        throw Error(`No trigger found for git branch ${gitBranch}`);
+    }
+    return triggers[0].environment.branchId;
+}
+exports.getBranchIdIdForGitBranch = getBranchIdIdForGitBranch;
+
+
+/***/ }),
+
 /***/ 8086:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -59186,7 +59243,7 @@ async function handleOperation(operation, options) {
             break;
         case "delete-environment":
             await (0, deleteTeamBranchAction_1.deleteTeamBranchAction)({
-                branchId: branch,
+                gitBranch: branch,
                 log,
                 qawolfApiKey,
                 teamId: qaWolfTeamId,
