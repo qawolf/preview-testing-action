@@ -58916,6 +58916,7 @@ async function findOrCreateEnvironment({ qawolfApiKey, branch, pr, qaWolfTeamId,
           $targetTeamBranchId: String!
         ) {
           promoteWorkflowsToBranch(
+            mergeStrategy: overwrite
             sourceTeamBranchId: $sourceTeamBranchId
             targetTeamBranchId: $targetTeamBranchId
           )

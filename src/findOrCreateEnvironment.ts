@@ -201,6 +201,7 @@ export async function findOrCreateEnvironment({
           $targetTeamBranchId: String!
         ) {
           promoteWorkflowsToBranch(
+            mergeStrategy: overwrite
             sourceTeamBranchId: $sourceTeamBranchId
             targetTeamBranchId: $targetTeamBranchId
           )
