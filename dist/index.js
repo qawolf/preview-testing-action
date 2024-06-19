@@ -59111,7 +59111,7 @@ async function getBranchIdIdForGitBranch({ gitBranch, log, qawolfApiKey, }) {
         variables: {
             where: {
                 deployment_branches: {
-                    contains: gitBranch,
+                    equals: gitBranch,
                 },
             },
         },

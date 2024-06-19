@@ -28,7 +28,7 @@ export async function getBranchIdIdForGitBranch({
       variables: {
         where: {
           deployment_branches: {
-            contains: gitBranch,
+            equals: gitBranch,
           },
         },
       },
